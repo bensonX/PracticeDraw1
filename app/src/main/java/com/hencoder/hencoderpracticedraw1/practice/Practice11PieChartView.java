@@ -8,6 +8,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 
 public class Practice11PieChartView extends View {
@@ -137,11 +138,25 @@ public class Practice11PieChartView extends View {
             // 文字
             paint.setTextSize(30);
             Rect rect = getTextBounds(labels[i], paint);
-            int offsetY = rect.height() / 2;
+
+            Paint.FontMetrics fontMetrics = paint.getFontMetrics();
+            Log.e("fm", "top == " + fontMetrics.top + ", ascent == " + fontMetrics.ascent
+            + ", descent = " + fontMetrics.descent + ", bottom == " + fontMetrics.bottom);
+            Rect tbRect = new Rect();
+            tbRect.left = endX + 5;
+            tbRect.top = (int) (stopY + fontMetrics.top);
+            tbRect.right = tbRect.left + rect.width();
+            tbRect.bottom = tbRect.top + (int) (fontMetrics.bottom - fontMetrics.top);
+
+
             if (isRight) {
-                canvas.drawText(labels[i], endX + 5, stopY + offsetY, paint);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setColor(Color.YELLOW);
+                canvas.drawRect(tbRect, paint);
+                paint.setColor(Color.WHITE);
+                canvas.drawText(labels[i], endX + 5, stopY, paint);
             } else {
-                canvas.drawText(labels[i], endX - rect.width() - 5, stopY + offsetY, paint);
+                canvas.drawText(labels[i], endX - rect.width() - 5, stopY, paint);
             }
 
             if (i == selectedIndex) {
