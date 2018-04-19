@@ -1,3 +1,10 @@
+#Screenshots
+===
+![](screenshots/1.png)
+
+![](screenshots/2.png)
+
+
 ![](images/icon.png)
 
 HenCoder 绘制 1 练习项目
