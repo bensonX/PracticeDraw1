@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.support.annotation.Nullable;
@@ -20,6 +21,8 @@ public class Practice11PieChartView extends View {
     int[] colors;
 
     String[] labels;
+
+    Rect[] bounds;
 
     Paint paint = new Paint();
 
@@ -71,6 +74,8 @@ public class Practice11PieChartView extends View {
                 "L",
                 "M"
         };
+
+        bounds = new Rect[labels.length];
     }
 
     @Override
@@ -102,7 +107,10 @@ public class Practice11PieChartView extends View {
 
         float startAngle = 0;
         int len = colors.length;
+
+        boolean isPreviousRight = false;
         for (int i = 0; i < len; i++) {
+            paint.setStyle(Paint.Style.FILL);
             paint.setColor(colors[i]);
             double theta = (startAngle + angles[i] / 2) * Math.PI / 180;
             if (i == selectedIndex) {
@@ -111,6 +119,16 @@ public class Practice11PieChartView extends View {
                 canvas.translate((int) (OFFSET * Math.cos(theta)), (int) (OFFSET * Math.sin(theta)));
             }
             canvas.drawArc(rectF, startAngle, angles[i], true, paint);
+
+            boolean changedSide = false;
+            boolean isRight = (startAngle + angles[i] / 2) > 270 || (startAngle + angles[i] / 2) < 90;
+            if (i == 0) {
+                isPreviousRight = isRight;
+            } else {
+                changedSide = isPreviousRight != isRight;
+                isPreviousRight = isRight;
+            }
+
             // draw line
             paint.setColor(Color.WHITE);
             paint.setStrokeWidth(2);
@@ -121,39 +139,79 @@ public class Practice11PieChartView extends View {
             int startX = (int) (centerX + radius * Math.cos(theta));
             int startY = (int) (centerY + radius * Math.sin(theta));
 
-            // 斜线
             int biggerR = radius + 50;
             int stopX = (int) (centerX + biggerR * Math.cos(theta));
             int stopY = (int) (centerY + biggerR * Math.sin(theta));
-            canvas.drawLine(startX, startY, stopX, stopY, paint);
 
             // 斜线后的直线
             int endX = w / 5 - 100;
-            boolean isRight = (startAngle + angles[i] / 2) > 270 || (startAngle + angles[i] / 2) < 90;
             if (isRight) {
                 endX = w / 5 * 4 - 100;
             }
-            canvas.drawLine(stopX, stopY, endX, stopY, paint);
 
-            // 文字
             paint.setTextSize(30);
+            // 文字
             Rect rect = getTextBounds(labels[i], paint);
 
             Paint.FontMetrics fontMetrics = paint.getFontMetrics();
             Log.e("fm", "top == " + fontMetrics.top + ", ascent == " + fontMetrics.ascent
             + ", descent = " + fontMetrics.descent + ", bottom == " + fontMetrics.bottom);
-            Rect tbRect = new Rect();
+            bounds[i] = new Rect();
+            Rect tbRect = bounds[i];
             tbRect.left = endX + 5;
             tbRect.top = (int) (stopY + fontMetrics.top);
             tbRect.right = tbRect.left + rect.width();
             tbRect.bottom = tbRect.top + (int) (fontMetrics.bottom - fontMetrics.top);
 
 
-            if (isRight) {
+            int moveStatus = 0;
+            if (i > 0) {
+                moveStatus = checkNeedMove(tbRect, bounds[i - 1], changedSide);
+            }
+
+            paint.setColor(Color.WHITE);
+            paint.setStrokeWidth(2);
+            paint.setAntiAlias(true);
+            int offset = 0;
+            if (moveStatus > 0) {
+                if (moveStatus == 1) {
+                    // 下移
+                    offset = 30;
+                } else {
+                    // 上移
+                    offset = -30;
+                }
+                tbRect.top += offset;
+                tbRect.bottom += offset;
+                stopY += offset;
+
+                int lineSize = (endX - startX) / 3;
+
+                Path path = new Path();
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setColor(Color.YELLOW);
-                canvas.drawRect(tbRect, paint);
-                paint.setColor(Color.WHITE);
+                path.moveTo(startX, startY);
+                // 三分之一长度的直线
+                path.lineTo(startX + lineSize, startY);
+
+                // 三分之一长度斜线
+                path.rLineTo(lineSize * 2 / 3, stopY - startY); // 需要改成三角函数求长度
+
+                // 三分之一长度直线
+                path.lineTo(endX, stopY);
+
+                canvas.drawPath(path, paint);
+
+//                canvas.drawLine(startX, startY, stopX, stopY, paint);
+            } else {
+                // 斜线
+                canvas.drawLine(startX, startY, stopX, stopY, paint);
+
+                // 斜线后的直线
+                canvas.drawLine(stopX, stopY, endX, stopY, paint);
+            }
+
+
+            if (isRight) {
                 canvas.drawText(labels[i], endX + 5, stopY, paint);
             } else {
                 canvas.drawText(labels[i], endX - rect.width() - 5, stopY, paint);
@@ -174,4 +232,32 @@ public class Practice11PieChartView extends View {
     }
 
 
+    /**
+     * 检查是否需要移动。
+     *
+     * @param thisRect
+     * @param previousRect
+     * @return 0： 不需要移动
+     * 1： 下移
+     * 2. 上移
+     */
+    private int checkNeedMove(Rect thisRect, Rect previousRect, boolean changedSide) {
+        if (changedSide) return  0;
+        if (thisRect.bottom > previousRect.bottom) {
+            // 当前的在前面的下面
+            // 那么检查 前面的下面 跟 当前的上面 有没有交集
+            if (previousRect.bottom > thisRect.top) {
+                // 有交集
+                return 1;
+            }
+        } else {
+            // 当前的在前一个的上面
+            // 那么检查 当前的下面 跟 前一个的上面 有没有交集
+            if (previousRect.top < thisRect.bottom) {
+                // 有交集
+                return 2;
+            }
+        }
+        return 0;
+    }
 }
